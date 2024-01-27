@@ -1,3 +1,11 @@
+'''
+
+  Code handling the network analysis of the F1 Drivers Network
+  Handling of the functions running is in the main function at the bottom of the source code
+  Comment/Uncomment desired functions to run them
+
+'''
+
 import pandas as pd
 import networkx as nx
 import matplotlib.pyplot as plt
@@ -631,18 +639,18 @@ def main():
     driver_id_to_name = map_driver_ids_to_names(drivers)
 
     # Calculate properties for each graph
-    #calculate_properties(G, races, driver_id_to_name)
-    #calculate_properties(G_old, races, driver_id_to_name, "1950 - 1999 ")
-    #calculate_properties(G_new, races, driver_id_to_name, "2000 - 2023 ")
+    calculate_properties(G, races, driver_id_to_name)
+    calculate_properties(G_old, races, driver_id_to_name, "1950 - 1999 ")
+    calculate_properties(G_new, races, driver_id_to_name, "2000 - 2023 ")
     
     # Calculate centrality measures
-    #calculate_centrality_measures([G, G_old, G_new], driver_id_to_name)
+    calculate_centrality_measures([G, G_old, G_new], driver_id_to_name)
     
     # Calculate degree distributions
-    #degree_distribution(G, G_old, G_new)
+    degree_distribution(G, G_old, G_new)
     
     # Graph visualisation
-    #graph_visualisation(G, G_old, G_new, driver_id_to_name)
+    graph_visualisation(G, G_old, G_new, driver_id_to_name)
     
     # Random network generation
     er_networks_old, er_networks_new, cm_networks_old, cm_networks_new = generate_random_networks(G, G_old, G_new, driver_id_to_name)
