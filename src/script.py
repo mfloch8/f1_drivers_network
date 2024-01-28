@@ -393,7 +393,7 @@ def generate_random_networks(G, G_old, G_new, driver_id_to_name):
     
     return (erdos_renyi_networks_old, erdos_renyi_networks_new, configuration_model_networks_old, configuration_model_networks_new,)
 
-def random_network_centralities(G, er_networks_old, er_networks_new, cm_networks_old, cm_networks_new, driver_id_to_name):
+def random_network_centralities(G, G_old, G_new, er_networks_old, er_networks_new, cm_networks_old, cm_networks_new, driver_id_to_name):
     # Function to calculate centrality measures for a network
     def calculate_centrality_measures(network, name):
         degree_centrality = nx.degree_centrality(network)
@@ -418,12 +418,20 @@ def random_network_centralities(G, er_networks_old, er_networks_new, cm_networks
         top_nodes_closeness_names = top_nodes_closeness['NodeID'].map(lambda driver_id: get_driver_name(driver_id, driver_id_to_name))
         top_nodes_betweenness_names = top_nodes_betweenness['NodeID'].map(lambda driver_id: get_driver_name(driver_id, driver_id_to_name))
 
+       # Calculate centrality distributions
+        closeness_distribution = centrality_df['Closeness'].tolist()
+        betweenness_distribution = centrality_df['Betweenness'].tolist()
+        degree_distribution = centrality_df['Degree'].tolist()
+
         return {
             'Network': name,
             'Top 5 Drivers Degree': pd.DataFrame({'Driver ID': top_nodes_degree['NodeID'], 'Driver Name': top_nodes_degree_names, 'Degree': top_nodes_degree['Degree']}).to_string(index=False),
             'Top 5 Drivers Closeness': pd.DataFrame({'Driver ID': top_nodes_closeness['NodeID'], 'Driver Name': top_nodes_closeness_names, 'Closeness': top_nodes_closeness['Closeness']}).to_string(index=False),
             'Top 5 Drivers Betweenness': pd.DataFrame({'Driver ID': top_nodes_betweenness['NodeID'], 'Driver Name': top_nodes_betweenness_names, 'Betweenness': top_nodes_betweenness['Betweenness']}).to_string(index=False),
-            'Centrality Correlation Matrix': centrality_df.drop('NodeID', axis=1).corr().to_string()
+            'Centrality Correlation Matrix': centrality_df.drop('NodeID', axis=1).corr().to_string(),
+            'Closeness Centrality Distribution': closeness_distribution,
+            'Betweenness Centrality Distribution': betweenness_distribution,
+            'Degree Centrality Distribution': degree_distribution
         }
 
     # Calculate centrality measures for Erdos-Renyi networks
@@ -435,6 +443,8 @@ def random_network_centralities(G, er_networks_old, er_networks_new, cm_networks
     config_model_results_new = [calculate_centrality_measures(config_model_network, f'Config New {i+1}') for i, config_model_network in enumerate(cm_networks_new)]
 
     centrality_results = [calculate_centrality_measures(G, f'General Network')]
+    centrality_results_old = [calculate_centrality_measures(G_old, f'General Network')]
+    centrality_results_new = [calculate_centrality_measures(G_new, f'General Network')]
 
     # Combine all results
     all_results = centrality_results + erdos_renyi_results_old + erdos_renyi_results_new + config_model_results_old + config_model_results_new
@@ -449,55 +459,119 @@ def random_network_centralities(G, er_networks_old, er_networks_new, cm_networks
         print("\nTop 5 Drivers with Highest Betweenness Centrality:")
         print(result['Top 5 Drivers Betweenness'])
         
-def random_network_clustering(G, G_old, G_new, er_networks_old, er_networks_new, cm_networks_old, cm_networks_new):
-    network_names = ['Original', 'Old', 'New'] + \
-                [f'ER Old {i+1}' for i in range(3)] + \
-                [f'ER New {i+1}' for i in range(3)] + \
-                [f'Config Old {i+1}' for i in range(3)] + \
-                [f'Config New {i+1}' for i in range(3)]
+    def plot_centrality_histograms(degree_distributions, closeness_distributions, betweenness_distributions, network_names):
+        plt.figure(figsize=(15, 5))
 
-    def plot_combined_clustering_coefficients(model_networks, network_names, model_name):
-        avg_clustering_values = []
-        global_clustering_values = []
-
-        for network in model_networks:
-            # Convert multigraphs to simple graphs
-            if isinstance(network, nx.MultiGraph) or isinstance(network, nx.MultiDiGraph):
-                network = nx.Graph(network)
-
-            avg_clustering = nx.average_clustering(network)
-            global_clustering = nx.transitivity(network)
-
-            avg_clustering_values.append(avg_clustering)
-            global_clustering_values.append(global_clustering)
-
-        print(f"Average clustering values: {avg_clustering_values}")
-        print(f"Global clustering values: {global_clustering_values}")
-        
-        # Plot the clustering coefficients
-        plt.figure(figsize=(10, 6))
-
-        # Plot Average Clustering
-        plt.plot(network_names, avg_clustering_values, marker='o', linestyle='-', color='blue', label='Average Clustering')
-
-        # Plot Global Clustering
-        plt.plot(network_names, global_clustering_values, marker='o', linestyle='-', color='green', label='Global Clustering')
-
-        plt.title(f'{model_name} Model Clustering Coefficients')
-        plt.xlabel('Networks')
-        plt.ylabel('Clustering Coefficient')
+        # Plot Degree Centrality
+        plt.subplot(1, 3, 1)
+        plt.hist(degree_distributions[0], bins=20, alpha=0.5, label=f'{network_names[0]}', color='red')
+        plt.hist(degree_distributions[1], bins=20, alpha=0.5, label=f'{network_names[1]}', color='blue')
+        plt.hist(degree_distributions[2], bins=20, alpha=0.5, label=f'{network_names[2]}', color='green')
+        plt.title('Degree Centrality Distribution')
+        plt.xlabel('Degree Centrality')
+        plt.ylabel('Frequency')
         plt.legend()
-        plt.xticks(rotation=45, ha='right')  # Rotate x-axis labels for better visibility
+
+        # Plot Closeness Centrality
+        plt.subplot(1, 3, 2)
+        plt.hist(closeness_distributions[0], bins=20, alpha=0.5, label=f'{network_names[0]}', color='red')
+        plt.hist(closeness_distributions[1], bins=20, alpha=0.5, label=f'{network_names[1]}', color='blue')
+        plt.hist(closeness_distributions[2], bins=20, alpha=0.5, label=f'{network_names[2]}', color='green')
+        plt.title('Closeness Centrality Distribution')
+        plt.xlabel('Closeness Centrality')
+        plt.ylabel('Frequency')
+        plt.legend()
+
+        # Plot Betweenness Centrality
+        plt.subplot(1, 3, 3)
+        plt.hist(betweenness_distributions[0], bins=20, alpha=0.5, label=f'{network_names[0]}', color='red')
+        plt.hist(betweenness_distributions[1], bins=20, alpha=0.5, label=f'{network_names[1]}', color='blue')
+        plt.hist(betweenness_distributions[2], bins=20, alpha=0.5, label=f'{network_names[2]}', color='green')
+        plt.title('Betweenness Centrality Distribution')
+        plt.xlabel('Betweenness Centrality')
+        plt.ylabel('Frequency')
+        plt.legend()
+
         plt.tight_layout()
         plt.show()
 
-    # Combine Erdos-Renyi model data into one graph
-    plot_combined_clustering_coefficients([G_old, G_new] + er_networks_old + er_networks_new, network_names[1:9], 'Erdos-Renyi')
 
-    # Combine Configuration model data into one graph
-    plot_combined_clustering_coefficients([G_old, G_new] + cm_networks_old + cm_networks_new, network_names[1:3] + network_names[9:15], 'Configuration')
+    # Extract centrality distributions from results for old network
+    degree_distributions_old = [
+        centrality_results_old[0]['Degree Centrality Distribution'],
+        erdos_renyi_results_old[0]['Degree Centrality Distribution'],
+        config_model_results_old[0]['Degree Centrality Distribution']
+    ]
+
+    closeness_distributions_old = [
+        centrality_results_old[0]['Closeness Centrality Distribution'],
+        erdos_renyi_results_old[0]['Closeness Centrality Distribution'],
+        config_model_results_old[0]['Closeness Centrality Distribution']
+    ]
+
+    betweenness_distributions_old = [
+        centrality_results_old[0]['Betweenness Centrality Distribution'],
+        erdos_renyi_results_old[0]['Betweenness Centrality Distribution'],
+        config_model_results_old[0]['Betweenness Centrality Distribution']
+    ]
+
+    # Plot histograms
+    network_names_old = ['Network 1950-1999', 'E-R Old', 'Config Old']
+    plot_centrality_histograms(degree_distributions_old, closeness_distributions_old, betweenness_distributions_old, network_names_old)
+    
+    # Extract centrality distributions from results for new network
+    degree_distributions_new = [
+        centrality_results_new[0]['Degree Centrality Distribution'],
+        erdos_renyi_results_new[0]['Degree Centrality Distribution'],
+        config_model_results_new[0]['Degree Centrality Distribution']
+    ]
+
+    closeness_distributions_new = [
+        centrality_results_new[0]['Closeness Centrality Distribution'],
+        erdos_renyi_results_new[0]['Closeness Centrality Distribution'],
+        config_model_results_new[0]['Closeness Centrality Distribution']
+    ]
+
+    betweenness_distributions_new = [
+        centrality_results_new[0]['Betweenness Centrality Distribution'],
+        erdos_renyi_results_new[0]['Betweenness Centrality Distribution'],
+        config_model_results_new[0]['Betweenness Centrality Distribution']
+    ]
+
+    # Plot histograms
+    network_names_new = ['Network 2000-2023', 'E-R New', 'Config New']
+    plot_centrality_histograms(degree_distributions_new, closeness_distributions_new, betweenness_distributions_new, network_names_new)
 
 
+def random_network_clustering(G, G_old, G_new, er_networks_old, er_networks_new, cm_networks_old, cm_networks_new):
+    network_names = ['Old', 'New'] + \
+                ['ER Old', 'ER New', 'Config Old', 'Config New']
+
+    def calculate_clustering_coefficients(network, name):
+        if isinstance(network, nx.MultiGraph) or isinstance(network, nx.MultiDiGraph):
+            network = nx.Graph(network)
+
+        avg_clustering = nx.average_clustering(network)
+        global_clustering = nx.transitivity(network)
+
+        return {
+            'Network': name,
+            'Average Clustering Coefficient': avg_clustering,
+            'Global Clustering Coefficient': global_clustering
+        }
+
+    def print_clustering_coefficient_table(model_networks, network_names):
+        clustering_data = []
+
+        for network, name in zip(model_networks, network_names):
+            clustering_data.append(calculate_clustering_coefficients(network, name))
+
+        table = tabulate(clustering_data, headers='keys', tablefmt='pretty')
+        print(f"Clustering Coefficients")
+        print(table)
+
+    # Print Erdos-Renyi model clustering coefficients
+    print_clustering_coefficient_table([G_old, G_new] + [er_networks_old[0], er_networks_new[0], cm_networks_old[0], cm_networks_new[0]], network_names)
 
 def uniform_node_percolation(G_old, G_new, er_networks_old, er_networks_new, cm_networks_old, cm_networks_new):
     # Function to simulate percolation on a network
@@ -584,21 +658,20 @@ def non_uniform_node_percolation(G_old, G_new, er_networks_old, er_networks_new,
         else:
             return 0
 
-    def perform_non_uniform_percolation(network):
-        num_iterations = len(network.nodes()) - int(len(network.nodes()) / 10)
+    def perform_non_uniform_percolation(network, max_degree):
         num_nodes_original = len(network.nodes())
         percent_giant_cluster_history = []
 
-        for iteration in range(num_iterations):
-            # Remove the node with the highest degree
-            node_to_remove = max(network.degree, key=lambda x: x[1])[0]
-            network.remove_node(node_to_remove)
+        for degree_threshold in range(max_degree, 0, -1):
+            # Remove nodes with degree greater than the threshold
+            nodes_to_remove = [node for node, degree in dict(network.degree()).items() if degree > degree_threshold]
+            network.remove_nodes_from(nodes_to_remove)
 
             # Calculate the size of the giant cluster
             giant_component_size_value = giant_component_size(network)
 
             # Calculate the percentage of nodes in the giant cluster
-            percent_giant_cluster = (giant_component_size_value / (num_nodes_original - iteration - 1)) * 100
+            percent_giant_cluster = (giant_component_size_value / (num_nodes_original - len(nodes_to_remove))) * 100
             percent_giant_cluster_history.append(percent_giant_cluster)
 
         return percent_giant_cluster_history
@@ -607,13 +680,14 @@ def non_uniform_node_percolation(G_old, G_new, er_networks_old, er_networks_new,
         plt.figure(figsize=(15, 5))
 
         for network, network_name in zip(networks, network_names):
-            percent_giant_cluster_history = perform_non_uniform_percolation(network)
+            max_degree = max(dict(network.degree()).values())
+            percent_giant_cluster_history = perform_non_uniform_percolation(network, max_degree)
 
             # Plot the results for non-uniform percolation
-            plt.plot(range(1, len(percent_giant_cluster_history) + 1), percent_giant_cluster_history,
-                    marker='', linestyle='-', label=network_name)
+            plt.plot(range(max_degree, 0, -1), percent_giant_cluster_history,
+                     marker='', linestyle='-', label=network_name)
 
-        plt.xlabel('Number of Removed Nodes')
+        plt.xlabel('Degree Threshold')
         plt.ylabel('Percentage of Nodes in Giant Cluster')
         plt.title('Non-Uniform Percolation Comparison')
         plt.legend()
@@ -650,13 +724,13 @@ def main():
     degree_distribution(G, G_old, G_new)
     
     # Graph visualisation
-    graph_visualisation(G, G_old, G_new, driver_id_to_name)
+    #graph_visualisation(G, G_old, G_new, driver_id_to_name)
     
     # Random network generation
     er_networks_old, er_networks_new, cm_networks_old, cm_networks_new = generate_random_networks(G, G_old, G_new, driver_id_to_name)
 
     # Random network centralities 
-    random_network_centralities(G, er_networks_old, er_networks_new, cm_networks_old, cm_networks_new, driver_id_to_name)
+    random_network_centralities(G, G_old, G_new, er_networks_old, er_networks_new, cm_networks_old, cm_networks_new, driver_id_to_name)
     
     # Random network clustering
     random_network_clustering(G, G_old, G_new, er_networks_old, er_networks_new, cm_networks_old, cm_networks_new)
